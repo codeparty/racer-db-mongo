@@ -1,0 +1,4 @@
+*.gz
+test-output.tmp
+node_modules/
+lib/

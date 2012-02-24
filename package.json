@@ -1,0 +1,14 @@
+{
+  "name": "racer-db-mongo",
+  "description": "MongoDB database plugin for Racer",
+  "version": "0.0.1",
+  "main": "./lib/index.js",
+  "devDependencies": {
+    "mocha": ">=0.9.0",
+    "expect.js": ">=0.1.2",
+    "coffee-script": ">=1.1.2"
+  },
+  "engines": {
+    "node": ">=0.4.0"
+  }
+}
