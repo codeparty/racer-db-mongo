@@ -1,12 +1,13 @@
-Promise = null
+LiveQuery = Promise = null
 
 module.exports = (racer) ->
-  {Promise} = racer
+  {LiveQuery, Promise} = racer
   return MongoQuery
 
-MongoQuery = ->
+MongoQuery = (query) ->
   @_conds = {}
   @_opts = {}
+  LiveQuery.call this, query
   return
 
 MongoQuery::=
@@ -82,9 +83,14 @@ MongoQuery::=
     if @_opts.limit isnt undefined && @_opts.skip is undefined
       @skip 0
     mongoAdapter.find @_namespace, @_conds, @_opts, (err, found) ->
-      promise.resolve err, found, xf
+      if found
+        if Array.isArray found
+          found.forEach fixId
+        else
+          fixId found
+      promise.resolve err, found
     return promise
 
-xf = (doc) ->
+fixId = (doc) ->
   doc.id = doc._id
   delete doc._id
