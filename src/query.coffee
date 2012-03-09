@@ -79,7 +79,7 @@ MongoQuery::=
     return this
 
   run: (mongoAdapter, callback) ->
-    promise = new Promise bothback: callback
+    promise = (new Promise).errback callback
     if @_opts.limit isnt undefined && @_opts.skip is undefined
       @skip 0
     mongoAdapter.find @_namespace, @_conds, @_opts, (err, found) ->
@@ -88,7 +88,7 @@ MongoQuery::=
           found.forEach fixId
         else
           fixId found
-      promise.resolve err, found
+      promise.errResolve err, found
     return promise
 
 fixId = (doc) ->
