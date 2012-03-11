@@ -1,15 +1,16 @@
 {
   "name": "racer-db-mongo",
   "description": "MongoDB database plugin for Racer",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "main": "./lib/index.js",
   "dependencies": {
     "mongodb": ">=0.9.6-7"
   },
   "devDependencies": {
-    "racer": ">=0.1.8"
+    "racer": ">=0.1.9"
   },
   "engines": {
     "node": ">=0.4.0"
-  }
+  },
+  "optionalDependencies": {}
 }

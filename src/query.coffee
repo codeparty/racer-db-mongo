@@ -1,10 +1,12 @@
-module.exports = (Promise) ->
+module.exports = (Promise, LiveQuery) ->
   MongoQuery.Promise = Promise
+  MongoQuery.LiveQuery = LiveQuery
   return MongoQuery
 
-MongoQuery = ->
+MongoQuery = (query) ->
   @_conds = {}
   @_opts = {}
+  MongoQuery.LiveQuery.call this, query
   return
 
 MongoQuery::=
@@ -76,13 +78,18 @@ MongoQuery::=
     return this
 
   run: (mongoAdapter, callback) ->
-    promise = new MongoQuery.Promise bothback: callback
+    promise = (new MongoQuery.Promise).on callback
     if @_opts.limit isnt undefined && @_opts.skip is undefined
       @skip 0
     mongoAdapter.find @_namespace, @_conds, @_opts, (err, found) ->
-      promise.resolve err, found, xf
+      if found
+        if Array.isArray found
+          found.forEach fixId
+        else
+          fixId found
+      promise.resolve err, found
     return promise
 
-xf = (doc) ->
+fixId = (doc) ->
   doc.id = doc._id
   delete doc._id

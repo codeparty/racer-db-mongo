@@ -62,18 +62,17 @@ DbMongo:: =
     )
     @_state = CONNECTING
     @emit 'connecting'
-    self = this
-    @_db.open (err) ->
+    @_db.open (err) =>
       return callback err if err && callback
-      open = ->
-        self._state = CONNECTED
-        self.emit 'connected'
-        for [method, args] in self._pending
-          self[method].apply self, args
-        self._pending = []
+      open = =>
+        @_state = CONNECTED
+        @emit 'connected'
+        for [method, args] in @_pending
+          @[method].apply this, args
+        @_pending = []
 
-      if self._user && self._pass
-        return self._db.authenticate self._user, self._pass, open
+      if @_user && @_pass
+        return @_db.authenticate @_user, @_pass, open
       return open()
 
   disconnect: (callback) ->
@@ -82,8 +81,7 @@ DbMongo:: =
     switch @_state
       when DISCONNECTED then callback null
       when CONNECTING
-        self = this
-        @once 'connected', -> self.close callback
+        @once 'connected', => @close callback
       when CONNECTED
         @_state = DISCONNECTING
         @_db.close()
@@ -393,17 +391,16 @@ DbMongo:: =
 MongoCollection = mongo.Collection
 
 Collection = (name, db) ->
-  self = this
-  self.name = name
-  self.db = db
-  self._pending = []
-  self._ready = false
+  @name = name
+  @db = db
+  @_pending = []
+  @_ready = false
 
-  db.collection name, (err, collection) ->
+  db.collection name, (err, collection) =>
     throw err if err
-    self._ready = true
-    self.collection = collection
-    self.onReady()
+    @_ready = true
+    @collection = collection
+    @onReady()
 
   return
 
