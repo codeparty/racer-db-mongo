@@ -1,7 +1,5 @@
-Promise = null
-
-module.exports = (racer) ->
-  {Promise} = racer
+module.exports = (Promise) ->
+  MongoQuery.Promise = Promise
   return MongoQuery
 
 MongoQuery = ->
@@ -78,7 +76,7 @@ MongoQuery::=
     return this
 
   run: (mongoAdapter, callback) ->
-    promise = new Promise bothback: callback
+    promise = new MongoQuery.Promise bothback: callback
     if @_opts.limit isnt undefined && @_opts.skip is undefined
       @skip 0
     mongoAdapter.find @_namespace, @_conds, @_opts, (err, found) ->

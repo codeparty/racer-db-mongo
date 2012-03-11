@@ -2,4 +2,8 @@ options =
   type: 'Mongo'
   uri: 'mongodb://localhost/test-db'
 
-require('racer/test/dbAdapter') options, require('../src')
+plugin = require '../src'
+
+testRunner = require 'racer/test/dbAdapter'
+
+testRunner options, plugin

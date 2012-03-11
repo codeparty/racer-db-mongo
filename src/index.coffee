@@ -10,7 +10,7 @@ CONNECTED     = 3
 DISCONNECTING = 4
 
 module.exports = (racer) ->
-  DbMongo::Query = query racer
+  DbMongo::Query = query racer.Promise
   racer.adapters.db.Mongo = DbMongo
 
 # Examples:
@@ -95,14 +95,16 @@ DbMongo:: =
 
   flush: (callback) ->
     return @_pending.push ['flush', arguments] if @_state != CONNECTED
-    @_db.dropDatabase (err, done) -> callback err, done
+    @_db.dropDatabase (err, done) =>
+      @version = 0
+      callback err, done
 
   # Mutator methods called via CustomDataSource::applyOps
   update: (collection, conds, op, opts, callback) ->
     @_collection(collection).update conds, op, opts, callback
 
-  findAndModify: (collection, conds, sort, op, opts, callback) ->
-    @_collection(collection).findAndModify conds, sort, op, opts, callback
+  findAndModify: (collection, args...) ->
+    @_collection(collection).findAndModify args...
 
   insert: (collection, json, opts, callback) ->
     # TODO Leverage pkey flag; it may not be _id
@@ -117,8 +119,8 @@ DbMongo:: =
       return callback err if err
 
   # Callback here receives raw json data back from Mongo
-  findOne: (collection, conds, opts, callback) ->
-    @_collection(collection).findOne conds, opts, callback
+  findOne: (collection, args...) ->
+    @_collection(collection).findOne args...
 
   find: (collection, conds, opts, callback) ->
     @_collection(collection).find conds, opts, (err, cursor) ->
@@ -136,237 +138,257 @@ DbMongo:: =
   setupDefaultPersistenceRoutes: (store) ->
     adapter = this
 
-    idFor = (id) ->
-      try
-        return new NativeObjectId id
-      catch e
-        throw e unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
-      return id
+    maybeCastId =
+      fromDb: (objectId) ->
+        return objectId.toString()
+      toDb: (id) ->
+        try
+          return new NativeObjectId id
+        catch e
+          throw e unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
+        return id
 
     store.defaultRoute 'get', '*.*.*', (collection, _id, relPath, done, next) ->
-      only = {}
-      only[relPath] = 1
-      adapter.findOne collection, {_id}, only, (err, doc) ->
+      fields = _id: 0
+      if relPath == 'id' then relPath = '_id'
+      fields[relPath] = 1
+      adapter.findOne collection, {_id}, fields, (err, doc) ->
         return done err if err
-        return done null, undefined, adapter.version if doc is null
+        return done null, undefined, adapter.version unless doc
 
+        if doc._id
+          doc.id = maybeCastId.fromDb doc._id
         val = doc
-        parts = relPath.split '.'
-        val = val[prop] for prop in parts
+        for prop in relPath.split '.'
+          val = val[prop]
 
         done null, val, adapter.version
 
     store.defaultRoute 'get', '*.*', (collection, _id, done, next) ->
-      adapter.findOne collection, {_id}, {}, (err, doc) ->
+      adapter.findOne collection, {_id}, (err, doc) ->
         return done err if err
-        return done null, undefined, adapter.version if doc is null
-        delete doc.ver
+        return done null, undefined, adapter.version unless doc
 
-        doc.id = doc._id.toString()
+        doc.id = maybeCastId.fromDb doc._id
         delete doc._id
 
         done null, doc, adapter.version
 
-    store.defaultRoute 'get', '*', (collection, done, next) ->
-      adapter.find collection, {}, {}, (err, docs) ->
-        return done err if err
-        docsById = {}
-        for doc in docs
-          doc.id = doc._id.toString()
-          delete doc._id
-          delete doc.ver
-          docsById[doc.id] = doc
-        done null, docsById, adapter.version
-
     store.defaultRoute 'set', '*.*.*', (collection, _id, relPath, val, ver, done, next) ->
+      relPath = '_id' if relPath == 'id'
       (setTo = {})[relPath] = val
       op = $set: setTo
-      _id = idFor _id
-      adapter.findAndModify collection, {_id}, [['_id', 'asc']], op, upsert: true, (err, origDoc) ->
-        return done err if err
-        adapter.setVersion ver
-        if Object.keys(origDoc).length
-          origDoc.id = origDoc._id
-          delete origDoc._id
+      _id = maybeCastId.toDb _id
+      adapter.findAndModify collection
+        , {_id}        # Conditions
+        , []           # Empty sort
+        , op           # Modification
+        , upsert: true # If not found, insert the object rperesented by op
+        , (err, origDoc) ->
+          return done err if err
+          adapter.setVersion ver
+          if origDoc && origDoc._id
+            origDoc.id = maybeCastId.fromDb origDoc._id
+            delete origDoc._id
           done null, origDoc
-        else
-          done null
 
-    store.defaultRoute 'set', '*.*', (collection, _id, doc, ver, done, next) ->
-      cb = (err) ->
+    store.defaultRoute 'set', '*.*', (collection, id, doc, ver, done, next) ->
+      cb = (err, origDoc) ->
         return done err if err
         adapter.setVersion ver
-        done null
-      if _id
-        docCopy = {}
-        for k, v of doc
-          # Don't use `delete docCopy.id` so we avoid side-effects in tests
-          docCopy[k] = v unless k is 'id'
-        docCopy._id = _id = idFor _id
-        adapter.findAndModify collection, {_id}, [['_id', 'asc']], docCopy, upsert: true, cb
-      else
-        adapter.insert collection, doc, {}, cb
-
-    store.defaultRoute 'del', '*.*.*', (collection, _id, relPath, ver, done, next) ->
-      (unsetConf = {})[relPath] = 1
-      op = $unset: unsetConf
-      op.$inc = {ver: 1}
-      _id = idFor _id
-      adapter.findAndModify collection, {_id}, [['_id', 'asc']], op, {}, (err, origDoc) ->
-        return done err if err
-        adapter.setVersion ver
-        origDoc.id = origDoc._id
-        delete origDoc._id
+        if origDoc && origDoc._id
+          origDoc.id = maybeCastId.fromDb origDoc._id
+          delete origDoc._id
         done null, origDoc
 
-    store.defaultRoute 'del', '*.*', (collection, _id, ver, done, next) ->
-      adapter.findAndModify collection, {_id}, [['_id', 'asc']], {}, remove: true, (err, removedDoc) ->
+      unless id
+        return adapter.insert collection, doc, cb
+
+      _id = maybeCastId.toDb id
+
+      # Don't use `delete doc.id` so we avoid side-effects in tests
+      docCopy = Object.create doc,
+        id: { value: undefined, enumerable: false }
+        _id: { value: _id, enumerable: true }
+      adapter.findAndModify collection, {_id}, [], docCopy, upsert: true, cb
+
+    store.defaultRoute 'del', '*.*.*', (collection, id, relPath, ver, done, next) ->
+      if relPath == 'id'
+        throw new Error 'Cannot delete an id'
+
+      (unsetConf = {})[relPath] = 1
+      op = $unset: unsetConf
+      _id = maybeCastId.toDb id
+      adapter.findAndModify collection, {_id}, [], op, (err, origDoc) ->
         return done err if err
         adapter.setVersion ver
-        removedDoc.id = removedDoc._id
-        delete removedDoc._id
+        if origDoc && origDoc._id
+          origDoc.id = maybeCastId.fromDb origDoc._id
+          delete origDoc._id
+        done null, origDoc
+
+    store.defaultRoute 'del', '*.*', (collection, id, ver, done, next) ->
+      _id = maybeCastId.toDb id
+      adapter.findAndModify collection, {_id}, [], {}, remove: true, (err, removedDoc) ->
+        return done err if err
+        adapter.setVersion ver
+        if removedDoc
+          removedDoc.id = maybeCastId.fromDb removedDoc._id
+          delete removedDoc._id
         done null, removedDoc
 
-    store.defaultRoute 'push', '*.*.*', (collection, _id, relPath, vals..., ver, done, next) ->
-      op = $inc: {ver: 1}
+    store.defaultRoute 'push', '*.*.*', (collection, id, relPath, vals..., ver, done, next) ->
+      op = {}
       if vals.length == 1
         (op.$push = {})[relPath] = vals[0]
       else
         (op.$pushAll = {})[relPath] = vals
 
-      op.$inc = {ver: 1}
+      _id = maybeCastId.toDb id
 
-      _id = idFor _id
-#      isLocalId = /^\$_\d+_\d+$/
-#      if isLocalId.test _id
-#        clientId = _id
-#        _id = new NativeObjectId
-#      else
-#        _id = new NativeObjectId _id
-
-      adapter.findAndModify collection, {_id}, [['_id', 'asc']], op, upsert: true, (err, origDoc) ->
-        return done err if err
+      adapter.findAndModify collection, {_id}, [], op, upsert: true, (err, origDoc) ->
+        if err
+          if /non-array/.test err.message
+            err = new Error 'Not an Array'
+          return done err if err
         adapter.setVersion ver
-        origDoc.id = origDoc._id
-        delete origDoc._id
+        if origDoc && origDoc._id
+          origDoc.id = maybeCastId.fromDb origDoc._id
+          delete origDoc._id
         done null, origDoc
-#        return done null unless clientId
-#        idMap = {}
-#        idMap[clientId] = _id
-#        done null, idMap
 
-    store.defaultRoute 'unshift', '*.*.*', (collection, _id, relPath, vals..., globalVer, done, next) ->
-      opts = ver: 1
-      opts[relPath] = 1
-      _id = idFor _id
-      exec = ->
-        adapter.findOne collection, {_id}, opts, (err, found) ->
+    store.defaultRoute 'unshift', '*.*.*', (collection, id, relPath, vals..., ver, done, next) ->
+      fields = _id: 0
+      fields[relPath] = 1
+      _id = maybeCastId.toDb id
+      adapter.findOne collection, {_id}, fields, (err, found) ->
+        return done err if err
+        arr = found?[relPath]
+        arr = [] if typeof arr is 'undefined'
+        return done new Error 'Not an Array' unless Array.isArray arr
+
+        arr = vals.concat arr.slice()
+
+        (setTo = {})[relPath] = arr
+        op = $set: setTo
+        adapter.findAndModify collection, {_id}, [], op, upsert: true, (err, origDoc) ->
           return done err if err
-          arr = found[relPath]?.slice() || []
-          ver = found.ver
-          arr.unshift vals...
-          (setTo = {})[relPath] = arr
-          op = $set: setTo, $inc: {ver: 1}
-          adapter.update collection, {_id, ver}, op, {}, (err) ->
-            throw err if err
-            return exec() if err
-            adapter.setVersion globalVer
-            found.id = found._id
-            delete found._id
-            done null, found
-      exec()
+          adapter.setVersion ver
+          if origDoc && origDoc._id
+            origDoc.id = maybeCastId.fromDb origDoc._id
+            delete origDoc._id
+          done null, origDoc
 
-    store.defaultRoute 'insert', '*.*.*', (collection, _id, relPath, index, vals..., globalVer, done, next) ->
-      opts = ver: 1
-      opts[relPath] = 1
-      _id = idFor _id
-      do exec = ->
-        adapter.findOne collection, {_id}, opts, (err, found) ->
+    store.defaultRoute 'insert', '*.*.*', (collection, id, relPath, index, vals..., ver, done, next) ->
+      fields = _id: 0
+      fields[relPath] = 1
+      _id = maybeCastId.toDb id
+      adapter.findOne collection, {_id}, fields, (err, found) ->
+        return done err if err
+        arr = found?[relPath]
+        arr = [] if typeof arr is 'undefined'
+        return done new Error 'Not an Array' unless Array.isArray arr
+
+        arr = arr[0...index].concat(vals).concat(arr[index..])
+
+        (setTo = {})[relPath] = arr
+        op = $set: setTo
+
+        adapter.update collection, {_id}, op, upsert: true, (err) ->
           return done err if err
-          arr = found[relPath]?.slice() || []
-          arr.splice index, 0, vals...
-          (setTo = {})[relPath] = arr
-          op = $set: setTo, $inc: {ver: 1}
-          ver = found.ver
-          adapter.update collection, {_id, ver}, op, {}, (err) ->
-            return exec() if err
-            adapter.setVersion globalVer
-            found.id = found._id
+          adapter.setVersion ver
+          if found
+            found.id = id
             delete found._id
-            done null, found
+          done null, found
 
-    store.defaultRoute 'pop', '*.*.*', (collection, _id, relPath, ver, done, next) ->
-      _id = idFor _id
+    store.defaultRoute 'pop', '*.*.*', (collection, id, relPath, ver, done, next) ->
+      _id = maybeCastId.toDb id
       (popConf = {})[relPath] = 1
-      op = $pop: popConf, $inc: {ver: 1}
-      adapter.findAndModify collection, {_id}, [['_id', 'asc']], op, {}, (err, origDoc) ->
-        return done err if err
+      op = $pop: popConf
+      adapter.findAndModify collection, {_id}, [], op, (err, origDoc) ->
+        if err
+          if /non-array/.test err.message
+            err = new Error 'Not an Array'
+          return done err if err
         adapter.setVersion ver
-        origDoc.id = origDoc._id
-        delete origDoc._id
+        if origDoc && origDoc._id
+          origDoc.id = maybeCastId.fromDb origDoc._id
+          delete origDoc._id
         done null, origDoc
 
-    store.defaultRoute 'shift', '*.*.*', (collection, _id, relPath, globalVer, done, next) ->
-      opts = ver: 1
-      opts[relPath] = 1
-      _id = idFor _id
-      do exec = ->
-        adapter.findOne collection, {_id}, opts, (err, found) ->
-          return done err if err
-          arr = found[relPath].slice?()
-          return done null, found unless arr
-          arr.shift()
-          (setTo = {})[relPath] = arr
-          op = $set: setTo, $inc: {ver: 1}
-          ver = found.ver
-          adapter.update collection, {_id, ver}, op, {}, (err) ->
-            return exec() if err
-            adapter.setVersion globalVer
-            found.id = found._id
-            delete found._id
-            done null, found
+    store.defaultRoute 'shift', '*.*.*', (collection, id, relPath, ver, done, next) ->
+      fields = _id: 0
+      fields[relPath] = 1
+      _id = maybeCastId.toDb id
+      adapter.findOne collection, {_id}, fields, (err, found) ->
+        return done err if err
+        return done null unless found
+        arr = found[relPath]
+        arr = [] if typeof arr is 'undefined'
+        return done new Error 'Not an Array' unless Array.isArray arr
 
-    store.defaultRoute 'remove', '*.*.*', (collection, _id, relPath, index, count, globalVer, done, next) ->
-      opts = ver: 1
-      opts[relPath] = 1
-      _id = idFor _id
-      do exec = ->
-        adapter.findOne collection, {_id}, opts, (err, found) ->
-          return done err if err
-          arr = found[relPath].slice?()
-          done null, found unless arr
-          arr.splice index, count
-          (setTo = {})[relPath] = arr
-          op = $set: setTo, $inc: {ver: 1}
-          ver = found.ver
-          adapter.update collection, {_id, ver}, op, {}, (err) ->
-            return exec() if err
-            adapter.setVersion globalVer
-            found.id = found._id
-            delete found._id
-            done null, found
+        arr = arr.slice()
+        arr.shift()
 
-    store.defaultRoute 'move', '*.*.*', (collection, _id, relPath, from, to, count, globalVer, done, next) ->
-      opts = ver: 1
-      opts[relPath] = 1
-      _id = idFor _id
-      do exec = ->
-        adapter.findOne collection, {_id}, opts, (err, found) ->
+        (setTo = {})[relPath] = arr
+        op = $set: setTo
+        adapter.update collection, {_id}, op, (err) ->
           return done err if err
-          arr = found[relPath].slice?()
-          done null, found unless arr
-          to += arr.length if to < 0
-          values = arr.splice from, count
-          arr.splice to, 0, values...
-          (setTo = {})[relPath] = arr
-          op = $set: setTo, $inc: {ver: 1}
-          ver = found.ver
-          adapter.update collection, {_id, ver}, op, {}, (err) ->
-            return exec() if err
-            adapter.setVersion globalVer
-            found.id = found._id
+          adapter.setVersion ver
+          if found
+            found.id = id
             delete found._id
-            done null, found
+          done null, found
+
+    store.defaultRoute 'remove', '*.*.*', (collection, id, relPath, index, count, ver, done, next) ->
+      fields = _id: 0
+      fields[relPath] = 1
+      _id = maybeCastId.toDb id
+      adapter.findOne collection, {_id}, fields, (err, found) ->
+        return done err if err
+        return done null unless found
+        arr = found[relPath]
+        arr = [] if typeof arr is 'undefined'
+        return done new Error 'Not an Array' unless Array.isArray arr
+
+        arr = arr.slice()
+        arr.splice index, count
+
+        (setTo = {})[relPath] = arr
+        op = $set: setTo
+        adapter.update collection, {_id}, op, (err) ->
+          return done err if err
+          adapter.setVersion ver
+          found.id = maybeCastId.fromDb found._id
+          delete found._id
+          done null, found
+
+    store.defaultRoute 'move', '*.*.*', (collection, id, relPath, from, to, count, ver, done, next) ->
+      fields = _id: 0
+      fields[relPath] = 1
+      _id = maybeCastId.toDb id
+      adapter.findOne collection, {_id}, fields, (err, found) ->
+        return done err if err
+        return done null unless found
+        arr = found[relPath]
+        arr = [] if typeof arr is 'undefined'
+        return done new Error 'Not an Array' unless Array.isArray arr
+
+        arr = arr.slice()
+        to += arr.length if to < 0
+        values = arr.splice from, count
+        arr.splice to, 0, values...
+
+        (setTo = {})[relPath] = arr
+        op = $set: setTo
+        adapter.update collection, {_id}, op, (err) ->
+          return done err if err
+          adapter.setVersion ver
+          if found
+            found.id = id
+            delete found._id
+          done null, found
 
 MongoCollection = mongo.Collection
 
@@ -387,8 +409,8 @@ Collection = (name, db) ->
 
 Collection:: =
   onReady: ->
-    for todo in @_pending
-      @[todo[0]].apply this, todo[1]
+    for [name, args] in @_pending
+      @[name].apply this, args
     @_pending = []
 
 for name, fn of MongoCollection::
