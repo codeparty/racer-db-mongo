@@ -10,7 +10,7 @@ CONNECTED     = 3
 DISCONNECTING = 4
 
 module.exports = (racer) ->
-  DbMongo::Query = query racer.Promise
+  DbMongo::Query = query racer.Promise, racer.LiveQuery
   racer.adapters.db.Mongo = DbMongo
 
 # Examples:
