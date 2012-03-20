@@ -1,4 +1,43 @@
-# MongoDB database plugin for Racer
+MongoDB database plugin for Racer
+==================================
+
+# Installation
+
+```
+$ npm install racer-db-mongo
+```
+
+# Using Mongo with Racer
+
+```javascript
+var racer = require('racer');
+racer.use(require('mongo-db-racer'));
+
+racer.createStore({
+  db: {
+      type: 'Mongo'
+    , uri: 'mongo://localhost/your-db-name'
+  }
+});
+```
+
+```javascript
+var racer = require('racer');
+racer.use(require('mongo-db-racer'));
+
+racer.createStore({
+  db: {
+      type: 'Mongo'
+    , host: 'localhost'
+    , port: 27017
+    , database: 'hello'
+    , user: 'hello'
+    , pass: 'naive-password'
+  }
+});
+```
+
+# Using Mongo with Derby
 
 See **http://racerjs.com/**
 
