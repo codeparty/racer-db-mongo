@@ -49,7 +49,11 @@ DbMongo:: =
       @_database = uri.pathname.replace /\//g, ''
       [@_user, @_pass] = uri.auth?.split(':') ? []
     else
-      {@_host, @_port, @_database, @_user, @_pass} = conf
+      { host: @_host
+      , port: @_port
+      , database: @_database
+      , user: @_user
+      , pass: @_pass } = conf
 
   connect: (conf, callback) ->
     if typeof conf is 'function'
