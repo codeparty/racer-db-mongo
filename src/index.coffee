@@ -9,9 +9,11 @@ CONNECTING    = 2
 CONNECTED     = 3
 DISCONNECTING = 4
 
-module.exports = (racer) ->
+exports = module.exports = (racer) ->
   DbMongo::Query = query racer.Promise, racer.LiveQuery
   racer.adapters.db.Mongo = DbMongo
+
+exports.useWith = server: true, browser: false
 
 # Examples:
 # new DbMongo
@@ -362,8 +364,7 @@ DbMongo:: =
         adapter.update collection, {_id}, op, (err) ->
           return done err if err
           adapter.setVersion ver
-          found.id = maybeCastId.fromDb found._id
-          delete found._id
+          found.id = id
           done null, found
 
     store.defaultRoute 'move', '*.*.*', (collection, id, relPath, from, to, count, ver, done, next) ->
