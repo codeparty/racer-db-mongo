@@ -3,6 +3,8 @@ url = require 'url'
 mongo = require 'mongodb'
 NativeObjectId = mongo.BSONPure.ObjectID
 query = require './query'
+Promise = require 'racer/lib/Promise'
+LiveQuery = require 'racer/lib/PubSub/LiveQuery'
 
 DISCONNECTED  = 1
 CONNECTING    = 2
@@ -10,7 +12,7 @@ CONNECTED     = 3
 DISCONNECTING = 4
 
 exports = module.exports = (racer) ->
-  DbMongo::Query = query racer.Promise, racer.LiveQuery
+  DbMongo::Query = query Promise, LiveQuery
   racer.registerAdapter 'db', 'Mongo', DbMongo
 
 exports.useWith = server: true, browser: false
