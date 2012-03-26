@@ -11,7 +11,7 @@ DISCONNECTING = 4
 
 exports = module.exports = (racer) ->
   DbMongo::Query = query racer.Promise, racer.LiveQuery
-  racer.adapters.db.Mongo = DbMongo
+  racer.registerAdapter 'db', 'Mongo', DbMongo
 
 exports.useWith = server: true, browser: false
 
