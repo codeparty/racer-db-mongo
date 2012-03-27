@@ -141,7 +141,7 @@ DbMongo:: =
 
   setVersion: (ver) -> @version = Math.max @version, ver
 
-  setupDefaultPersistenceRoutes: (store) ->
+  setupRoutes: (store) ->
     adapter = this
 
     maybeCastId =
@@ -154,7 +154,7 @@ DbMongo:: =
           throw e unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
         return id
 
-    store.defaultRoute 'get', '*.*.*', (collection, _id, relPath, done, next) ->
+    store.route 'get', '*.*.*', -1000, (collection, _id, relPath, done, next) ->
       fields = _id: 0
       if relPath == 'id' then relPath = '_id'
       fields[relPath] = 1
@@ -170,7 +170,7 @@ DbMongo:: =
 
         done null, val, adapter.version
 
-    store.defaultRoute 'get', '*.*', (collection, _id, done, next) ->
+    store.route 'get', '*.*', -1000, (collection, _id, done, next) ->
       adapter.findOne collection, {_id}, (err, doc) ->
         return done err if err
         return done null, undefined, adapter.version unless doc
@@ -180,7 +180,7 @@ DbMongo:: =
 
         done null, doc, adapter.version
 
-    store.defaultRoute 'set', '*.*.*', (collection, _id, relPath, val, ver, done, next) ->
+    store.route 'set', '*.*.*', -1000, (collection, _id, relPath, val, ver, done, next) ->
       relPath = '_id' if relPath == 'id'
       (setTo = {})[relPath] = val
       op = $set: setTo
@@ -198,7 +198,7 @@ DbMongo:: =
             delete origDoc._id
           done null, origDoc
 
-    store.defaultRoute 'set', '*.*', (collection, id, doc, ver, done, next) ->
+    store.route 'set', '*.*', -1000, (collection, id, doc, ver, done, next) ->
       cb = (err, origDoc) ->
         return done err if err
         adapter.setVersion ver
@@ -218,7 +218,7 @@ DbMongo:: =
         _id: { value: _id, enumerable: true }
       adapter.findAndModify collection, {_id}, [], docCopy, upsert: true, cb
 
-    store.defaultRoute 'del', '*.*.*', (collection, id, relPath, ver, done, next) ->
+    store.route 'del', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
       if relPath == 'id'
         throw new Error 'Cannot delete an id'
 
@@ -233,7 +233,7 @@ DbMongo:: =
           delete origDoc._id
         done null, origDoc
 
-    store.defaultRoute 'del', '*.*', (collection, id, ver, done, next) ->
+    store.route 'del', '*.*', -1000, (collection, id, ver, done, next) ->
       _id = maybeCastId.toDb id
       adapter.findAndModify collection, {_id}, [], {}, remove: true, (err, removedDoc) ->
         return done err if err
@@ -243,7 +243,7 @@ DbMongo:: =
           delete removedDoc._id
         done null, removedDoc
 
-    store.defaultRoute 'push', '*.*.*', (collection, id, relPath, vals..., ver, done, next) ->
+    store.route 'push', '*.*.*', -1000, (collection, id, relPath, vals..., ver, done, next) ->
       op = {}
       if vals.length == 1
         (op.$push = {})[relPath] = vals[0]
@@ -263,7 +263,7 @@ DbMongo:: =
           delete origDoc._id
         done null, origDoc
 
-    store.defaultRoute 'unshift', '*.*.*', (collection, id, relPath, vals..., ver, done, next) ->
+    store.route 'unshift', '*.*.*', -1000, (collection, id, relPath, vals..., ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
       _id = maybeCastId.toDb id
@@ -285,7 +285,7 @@ DbMongo:: =
             delete origDoc._id
           done null, origDoc
 
-    store.defaultRoute 'insert', '*.*.*', (collection, id, relPath, index, vals..., ver, done, next) ->
+    store.route 'insert', '*.*.*', -1000, (collection, id, relPath, index, vals..., ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
       _id = maybeCastId.toDb id
@@ -308,7 +308,7 @@ DbMongo:: =
             delete found._id
           done null, found
 
-    store.defaultRoute 'pop', '*.*.*', (collection, id, relPath, ver, done, next) ->
+    store.route 'pop', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
       _id = maybeCastId.toDb id
       (popConf = {})[relPath] = 1
       op = $pop: popConf
@@ -323,7 +323,7 @@ DbMongo:: =
           delete origDoc._id
         done null, origDoc
 
-    store.defaultRoute 'shift', '*.*.*', (collection, id, relPath, ver, done, next) ->
+    store.route 'shift', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
       _id = maybeCastId.toDb id
@@ -347,7 +347,7 @@ DbMongo:: =
             delete found._id
           done null, found
 
-    store.defaultRoute 'remove', '*.*.*', (collection, id, relPath, index, count, ver, done, next) ->
+    store.route 'remove', '*.*.*', -1000, (collection, id, relPath, index, count, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
       _id = maybeCastId.toDb id
@@ -369,7 +369,7 @@ DbMongo:: =
           found.id = id
           done null, found
 
-    store.defaultRoute 'move', '*.*.*', (collection, id, relPath, from, to, count, ver, done, next) ->
+    store.route 'move', '*.*.*', -1000, (collection, id, relPath, from, to, count, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
       _id = maybeCastId.toDb id
