@@ -15,6 +15,10 @@ exports = module.exports = (racer) ->
   DbMongo::Query = query Promise, LiveQuery
   racer.registerAdapter 'db', 'Mongo', DbMongo
 
+# Mark this as a racer plugin. This tells `derby.use(...)` to use the plugin on
+# racer, not derby.
+exports.decorate = 'racer'
+
 exports.useWith = server: true, browser: false
 
 # Examples:
