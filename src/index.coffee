@@ -213,9 +213,12 @@ DbMongo:: =
       _id = maybeCastId.toDb id
 
       # Don't use `delete doc.id` so we avoid side-effects in tests
-      docCopy = Object.create doc,
-        id: { value: undefined, enumerable: false }
-        _id: { value: _id, enumerable: true }
+      docCopy = {}
+      for k, v of doc
+        if k == 'id'
+          docCopy._id = _id
+        else
+          docCopy[k] = v
       adapter.findAndModify collection, {_id}, [], docCopy, upsert: true, cb
 
     store.route 'del', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
