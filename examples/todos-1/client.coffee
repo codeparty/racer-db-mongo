@@ -30,15 +30,22 @@ $ racer.ready (model) ->
       '<p id=info>Unable to reconnect &ndash; <a href=javascript:window.location.reload()>Reload</a>'
     )
 
+  # This occurs upon re-connection after a long time offline
+  model.on 'reInit', ->
+    listHtml = ''
+    for todo in model.get '_todoList'
+      listHtml += todoHtml todo
+    todoList.html listHtml
+
   list.on 'push', (value) ->
     todoList.append todoHtml(value)
 
   list.on 'insert', (index, value) ->
     todoList.children().eq(index).before todoHtml(value)
 
-  model.on 'set', '_group.todos.*.completed', (id, value) ->
+  model.on 'set', 'todos.*.completed', (id, value) ->
     $("#\\#{id}").toggleClass 'completed', value
-    $("#check#{id}").prop 'checked', value
+    $("#check\\#{id}").prop 'checked', value
 
   list.on 'remove', (index, howMany, [id]) ->
     $("#\\#{id}").remove()
@@ -52,8 +59,8 @@ $ racer.ready (model) ->
     else
       $("#\\#{id}").insertAfter target
 
-  model.on 'set', '_group.todos.*.text', (id, value) ->
-    el = $ "#text#{id}"
+  model.on 'set', 'todos.*.text', (id, value) ->
+    el = $ "#text\\#{id}"
     return if el.is ':focus'
     el.html value
 
@@ -61,13 +68,13 @@ $ racer.ready (model) ->
   ## Update the model in response to DOM events ##
 
   window.todos =
-  
+
     connect: ->
       reconnect = document.getElementById 'reconnect'
       reconnect.style.display = 'none'
       # Hide the reconnect link for a second so it looks like something is going on
       setTimeout (-> reconnect.style.display = 'inline'), 1000
-      model.socket.connect()
+      model.socket.socket.connect()
       return false
 
     addTodo: ->
@@ -89,7 +96,7 @@ $ racer.ready (model) ->
         list.insert i, todo
 
     check: (checkbox, id) ->
-      model.set "_group.todos.#{id}.completed", checkbox.checked
+      model.set "todos.#{id}.completed", checkbox.checked
       # Move the item to the bottom if it was checked off
       list.move {id}, -1 if checkbox.checked
 
@@ -114,7 +121,7 @@ $ racer.ready (model) ->
     target = e.target
     return unless id = target.getAttribute 'data-id'
     text = target.innerHTML
-    model.set "_group.todos.#{id}.text", text
+    model.set "todos.#{id}.text", text
   # Paste and dragover events are fired before the HTML is actually updated
   checkChangedDelayed = (e) ->
     setTimeout checkChanged, 10, e

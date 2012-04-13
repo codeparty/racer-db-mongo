@@ -5,7 +5,6 @@ racer = require 'racer'
 shared = require './shared'
 
 racer.use require 'racer-db-mongo'
-racer.use require 'racer-journal-redis'
 
 app = express.createServer()
   .use(express.favicon())
@@ -22,7 +21,8 @@ store = racer.createStore
 
 # racer.js returns a browserify bundle of the racer client side code and the
 # socket.io client side code as well as any additional browserify options
-racer.js entry: __dirname + '/client.js', (js) ->
+racer.js entry: __dirname + '/client.js', (err, js) ->
+  throw err if err
   fs.writeFileSync __dirname + '/script.js', js
 
 app.get '/', (req, res) ->
@@ -49,8 +49,6 @@ app.get '/:groupName', (req, res) ->
     # model.bundle waits for any pending model operations to complete and then
     # returns the JSON data for initialization on the client
     model.bundle (bundle) ->
-      console.log "AFTER BUNDLE"
-      console.log model.get '_group'
       listHtml = (shared.todoHtml todo for todo in model.get '_todoList').join('')
       res.send """
       <!DOCTYPE html>
