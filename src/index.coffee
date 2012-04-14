@@ -4,7 +4,7 @@ mongo = require 'mongodb'
 NativeObjectId = mongo.BSONPure.ObjectID
 query = require './query'
 Promise = require 'racer/lib/Promise'
-LiveQuery = require 'racer/lib/PubSub/LiveQuery'
+LiveQuery = require 'racer/lib/pubSub/LiveQuery'
 
 DISCONNECTED  = 1
 CONNECTING    = 2
