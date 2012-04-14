@@ -185,11 +185,12 @@ DbMongo:: =
         done null, doc, adapter.version
 
     store.route 'get', '*', -1000, (collection, done, next) ->
-      adapter.find collection, {}, {}, (err, docs) ->
+      adapter.find collection, {}, {}, (err, docList) ->
         return done err if err
-        return done null, [], adapter.version unless docs.length
-
-        done null, docs, adapter.version
+        docs = {}
+        for doc in docList
+          docs[doc._id] = doc
+        return done null, docs, adapter.version
 
     store.route 'set', '*.*.*', -1000, (collection, _id, relPath, val, ver, done, next) ->
       relPath = '_id' if relPath == 'id'
