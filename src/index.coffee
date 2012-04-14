@@ -184,6 +184,13 @@ DbMongo:: =
 
         done null, doc, adapter.version
 
+    store.route 'get', '*', -1000, (collection, done, next) ->
+      adapter.find collection, {}, {}, (err, docs) ->
+        return done err if err
+        return done null, [], adapter.version unless docs.length
+
+        done null, docs, adapter.version
+
     store.route 'set', '*.*.*', -1000, (collection, _id, relPath, val, ver, done, next) ->
       relPath = '_id' if relPath == 'id'
       (setTo = {})[relPath] = val
