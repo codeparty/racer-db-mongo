@@ -196,7 +196,9 @@ DbMongo:: =
       relPath = '_id' if relPath == 'id'
       (setTo = {})[relPath] = val
       op = $set: setTo
-      _id = maybeCastId.toDb _id
+      # TODO Don't let sessions leak into this abstraction
+      if collection != 'sessions'
+        _id = maybeCastId.toDb _id
       adapter.findAndModify collection
         , {_id}        # Conditions
         , []           # Empty sort
