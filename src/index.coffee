@@ -3,8 +3,6 @@ url = require 'url'
 mongo = require 'mongodb'
 NativeObjectId = mongo.BSONPure.ObjectID
 query = require './query'
-Promise = require 'racer/lib/Promise'
-LiveQuery = require 'racer/lib/pubSub/LiveQuery'
 
 DISCONNECTED  = 1
 CONNECTING    = 2
@@ -12,7 +10,7 @@ CONNECTED     = 3
 DISCONNECTING = 4
 
 exports = module.exports = (racer) ->
-  DbMongo::Query = query Promise, LiveQuery
+  DbMongo::Query = query racer
   racer.registerAdapter 'db', 'Mongo', DbMongo
 
 # Mark this as a racer plugin. This tells `derby.use(...)` to use the plugin on

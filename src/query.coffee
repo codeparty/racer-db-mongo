@@ -1,12 +1,14 @@
-module.exports = (Promise, LiveQuery) ->
-  MongoQuery.Promise = Promise
-  MongoQuery.LiveQuery = LiveQuery
+Promise = LiveQuery = null
+
+module.exports = (racer) ->
+  Promise = racer.util.Promise
+  LiveQuery = racer.protected.pubSub.LiveQuery
   return MongoQuery
 
 MongoQuery = (query) ->
   @_conds = {}
   @_opts = {}
-  MongoQuery.LiveQuery.call this, query
+  LiveQuery.call this, query
   return
 
 MongoQuery::=
@@ -78,7 +80,7 @@ MongoQuery::=
     return this
 
   run: (mongoAdapter, callback) ->
-    promise = (new MongoQuery.Promise).on callback
+    promise = (new Promise).on callback
     if @_opts.limit isnt undefined && @_opts.skip is undefined
       @skip 0
     mongoAdapter.find @_namespace, @_conds, @_opts, (err, found) ->
