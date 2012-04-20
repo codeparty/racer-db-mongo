@@ -149,11 +149,14 @@ DbMongo:: =
     maybeCastId =
       fromDb: (objectId) ->
         return objectId.toString()
-      toDb: (id) ->
+      toDb: (id, collection) ->
         try
           return new NativeObjectId id
         catch e
-          throw e unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
+          unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
+            console.warn "The following error is just being logged -- was for collection #{collection} and id #{id}"
+            console.warn e.message
+            console.warn stack
         return id
 
     store.route 'get', '*.*.*', -1000, (collection, _id, relPath, done, next) ->
@@ -196,7 +199,7 @@ DbMongo:: =
       op = $set: setTo
       # TODO Don't let sessions leak into this abstraction
       if collection != 'sessions'
-        _id = maybeCastId.toDb _id
+        _id = maybeCastId.toDb _id, collection
       adapter.findAndModify collection
         , {_id}        # Conditions
         , []           # Empty sort
@@ -222,7 +225,7 @@ DbMongo:: =
       unless id
         return adapter.insert collection, doc, cb
 
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
 
       # Don't use `delete doc.id` so we avoid side-effects in tests
       docCopy = {}
@@ -239,7 +242,7 @@ DbMongo:: =
 
       (unsetConf = {})[relPath] = 1
       op = $unset: unsetConf
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findAndModify collection, {_id}, [], op, (err, origDoc) ->
         return done err if err
         adapter.setVersion ver
@@ -249,7 +252,7 @@ DbMongo:: =
         done null, origDoc
 
     store.route 'del', '*.*', -1000, (collection, id, ver, done, next) ->
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findAndModify collection, {_id}, [], {}, remove: true, (err, removedDoc) ->
         return done err if err
         adapter.setVersion ver
@@ -265,7 +268,7 @@ DbMongo:: =
       else
         (op.$pushAll = {})[relPath] = vals
 
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
 
       adapter.findAndModify collection, {_id}, [], op, upsert: true, (err, origDoc) ->
         if err
@@ -281,7 +284,7 @@ DbMongo:: =
     store.route 'unshift', '*.*.*', -1000, (collection, id, relPath, vals..., ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findOne collection, {_id}, fields, (err, found) ->
         return done err if err
         arr = found?[relPath]
@@ -303,7 +306,7 @@ DbMongo:: =
     store.route 'insert', '*.*.*', -1000, (collection, id, relPath, index, vals..., ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findOne collection, {_id}, fields, (err, found) ->
         return done err if err
         arr = found?[relPath]
@@ -324,7 +327,7 @@ DbMongo:: =
           done null, found
 
     store.route 'pop', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       (popConf = {})[relPath] = 1
       op = $pop: popConf
       adapter.findAndModify collection, {_id}, [], op, (err, origDoc) ->
@@ -341,7 +344,7 @@ DbMongo:: =
     store.route 'shift', '*.*.*', -1000, (collection, id, relPath, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findOne collection, {_id}, fields, (err, found) ->
         return done err if err
         return done null unless found
@@ -365,7 +368,7 @@ DbMongo:: =
     store.route 'remove', '*.*.*', -1000, (collection, id, relPath, index, count, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findOne collection, {_id}, fields, (err, found) ->
         return done err if err
         return done null unless found
@@ -387,7 +390,7 @@ DbMongo:: =
     store.route 'move', '*.*.*', -1000, (collection, id, relPath, from, to, count, ver, done, next) ->
       fields = _id: 0
       fields[relPath] = 1
-      _id = maybeCastId.toDb id
+      _id = maybeCastId.toDb id, collection
       adapter.findOne collection, {_id}, fields, (err, found) ->
         return done err if err
         return done null unless found
