@@ -156,7 +156,7 @@ DbMongo:: =
           unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
             console.warn "The following error is just being logged -- was for collection #{collection} and id #{id}"
             console.warn e.message
-            console.warn stack
+            console.warn e.stack
         return id
 
     store.route 'get', '*.*.*', -1000, (collection, _id, relPath, done, next) ->
