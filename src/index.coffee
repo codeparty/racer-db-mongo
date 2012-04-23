@@ -153,7 +153,7 @@ DbMongo:: =
         try
           return new NativeObjectId id
         catch e
-          unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters in hex format'
+          unless e.message == 'Argument passed in must be a single String of 12 bytes or a string of 24 hex characters'
             console.warn "The following error is just being logged -- was for collection #{collection} and id #{id}"
             console.warn e.message
             console.warn e.stack
