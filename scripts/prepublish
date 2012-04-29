@@ -1,3 +1,0 @@
-#! /bin/bash
-coffee -b -o ./lib -c ./src
-coffee -bc ./examples/*/*.coffee
