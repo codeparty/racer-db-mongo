@@ -3,9 +3,6 @@
   "description": "MongoDB database plugin for Racer",
   "version": "0.3.2",
   "main": "./lib/index.js",
-  "scripts": {
-    "prepublish": "./scripts/prepublish"
-  },
   "dependencies": {
     "mongodb": ">=0.9.6-7"
   },
