@@ -2,7 +2,7 @@
 racer = require 'racer/lib/racer'
 shouldBehaveLikeDbAdapter= require 'racer/test/dbAdapter'
 
-plugin = require '../src'
+plugin = require '../lib'
 
 options =
   db:
