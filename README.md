@@ -11,7 +11,7 @@ $ npm install racer-db-mongo
 
 ```javascript
 var racer = require('racer');
-racer.use(require('mongo-db-racer'));
+racer.use(require('racer-db-mongo'));
 
 racer.createStore({
   db: {
@@ -23,7 +23,7 @@ racer.createStore({
 
 ```javascript
 var racer = require('racer');
-racer.use(require('mongo-db-racer'));
+racer.use(require('racer-db-mongo'));
 
 racer.createStore({
   db: {
