@@ -4,7 +4,7 @@
   "version": "0.3.11",
   "main": "./lib/index.js",
   "dependencies": {
-    "mongodb": ">=1"
+    "mongoskin": ">=0.3.7"
   },
   "devDependencies": {
     "racer": ">=0.3.11"
