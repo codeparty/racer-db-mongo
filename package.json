@@ -1,7 +1,7 @@
 {
   "name": "racer-db-mongo",
   "description": "MongoDB database plugin for Racer",
-  "version": "0.3.12-1",
+  "version": "0.3.13",
   "main": "./lib/index.js",
   "dependencies": {
     "mongoskin": ">=0.3.7"
