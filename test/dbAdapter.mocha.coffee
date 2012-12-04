@@ -1,5 +1,5 @@
 {expect} = require 'racer/test/util'
-racer = require 'racer/lib/racer'
+racer = require 'racer'
 shouldBehaveLikeDbAdapter= require 'racer/test/dbAdapter'
 
 plugin = require '../lib'
