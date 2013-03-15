@@ -7,7 +7,12 @@
     "mongoskin": ">=0.3.7"
   },
   "devDependencies": {
-    "racer": ">=0.3.11"
+    "racer": ">=0.3.11",
+    "mocha": "*",
+    "expect.js": "*",
+    "coffee-script": "*",
+    "sinon": "*",
+    "mongodb": "*"
   },
   "engines": {
     "node": ">=0.4.0"

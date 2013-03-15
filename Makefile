@@ -1,5 +1,5 @@
 MOCHA_TESTS := $(shell find test/ -name '*.mocha.coffee')
-MOCHA := ./node_modules/racer/node_modules/mocha/bin/mocha
+MOCHA := ./node_modules/.bin/mocha
 OUT_FILE = "test-output.tmp"
 
 g = "."
