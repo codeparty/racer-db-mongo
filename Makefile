@@ -6,7 +6,6 @@ g = "."
 
 test-mocha:
 	@NODE_ENV=test $(MOCHA) \
-	  -d \
 	  --colors \
 		--reporter spec \
 		--grep "$(g)" \

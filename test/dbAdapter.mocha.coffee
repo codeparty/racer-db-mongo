@@ -66,20 +66,15 @@ describe 'Mongo db adapter', ->
               expect(err).to.eql(null)
               expect($doc.get('name')).to.equal('temp')
               expect($doc.get('age')).to.equal(42)
-              console.log('afterdebugger')
               modelB.del "temp.#{hexString}", (err, doc) ->
-
-                console.log('args',arguments)
                 expect(err).to.eql(null)
 
                 modelA.fetch "temp.#{hexString}", (err, $doc) ->
-                  console.log('doc', $doc)
                   expect(err).to.eql(null)
                   expect($doc.get()).to.equal(undefined)
 
                   db.close()
                   done()
-
 
   describe 'isObjectIdString', ->
     it 'should return true for an ObjectId string', ->
